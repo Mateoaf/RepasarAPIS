@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasRole("ADMIN")
 
+                        .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll() // Cualquiera puede VER categorías
+                        .requestMatchers(HttpMethod.POST, "/api/categorias").hasRole("ADMIN") // Solo ADMIN puede CREAR categorías
                         .anyRequest().authenticated()
                 )
 

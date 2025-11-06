@@ -1,8 +1,13 @@
 package com.example.refrescar_apis.services;
 
+import com.example.refrescar_apis.dtos.ProductoRequestDTO;
+import com.example.refrescar_apis.dtos.ProductoResponseDTO;
+import com.example.refrescar_apis.mappers.ProductoMapper;
 import com.example.refrescar_apis.models.Producto;
 import com.example.refrescar_apis.repositories.ProductoRepository;
+
 import com.example.refrescar_apis.service.ProductoService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,115 +17,131 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
-// 1. Le dice a JUnit que use la extensión de Mockito
+import static org.junit.jupiter.api.Assertions.*; // Usamos las aserciones de JUnit 5
+import static org.mockito.ArgumentMatchers.any; // Import estático para 'any'
+import static org.mockito.Mockito.*; // Import estático para 'when', 'verify', 'never'
+
+
 @ExtendWith(MockitoExtension.class)
 class ProductoServiceTest {
 
-    // 2. Crea un "actor de doblaje" (un FALSO ProductoRepository)
+    // 1. Creamos un "actor de doblaje" (FALSO) para el Repositorio
     @Mock
     private ProductoRepository productoRepository;
 
-    // 3. Crea una instancia REAL de ProductoService
-    // e "inyéctale" todos los @Mock (el falso repo)
+    // 2. ¡NUEVO! Creamos un "actor de doblaje" (FALSO) para el Mapper
+    @Mock
+    private ProductoMapper productoMapper;
+
+    // 3. Creamos una instancia REAL de ProductoService
+    // e "inyéctale" todos los @Mock (el falso repo Y el falso mapper)
     @InjectMocks
     private ProductoService productoService;
 
-    // ¡Empecemos a probar!
+    // --- Datos de prueba reutilizables ---
+    private Producto productoEntidad;
+    private ProductoRequestDTO requestDTO;
+    private ProductoResponseDTO responseDTO;
 
-    @Test
-    void testGetAllProductos_deberiaDevolverLista() {
-        // --- 1. ARRANGE (Organizar) ---
-        // Preparamos nuestros datos falsos
-        Producto p1 = Producto.builder()
+    @BeforeEach
+    void setUp() {
+        // Datos que usaremos en varios tests
+
+        // El DTO de entrada que simula enviar el usuario
+        requestDTO = new ProductoRequestDTO();
+        requestDTO.setNombre("Test DTO");
+        requestDTO.setPrecio(100.0);
+
+        // La entidad que "simulamos" que existe en la BBDD
+        productoEntidad = Producto.builder()
                 .id(1L)
-                .nombre("Test 1")
+                .nombre("Test DTO")
                 .precio(100.0)
                 .build();
 
-        List<Producto> listaFalsa = List.of(p1);
+        // El DTO de respuesta que "simulamos" que el mapper crea
+        responseDTO = new ProductoResponseDTO();
+        responseDTO.setId(1L);
+        responseDTO.setNombre("Test DTO");
+        responseDTO.setPrecio(100.0);
+    }
 
-        // Le decimos a nuestro "actor" (el repo) qué debe hacer:
-        // "CUANDO alguien llame a tu método findAll(),
-        // ENTONCES devuelve la listaFalsa que acabo de crear."
-        org.mockito.Mockito.when(productoRepository.findAll())
-                .thenReturn(listaFalsa);
+
+    @Test
+    void testGetAllProductos_deberiaDevolverListaDeDTOs() {
+        // --- 1. ARRANGE (Organizar) ---
+        // Le decimos al FALSO repo qué devolver
+        when(productoRepository.findAll()).thenReturn(List.of(productoEntidad));
+        // Le decimos al FALSO mapper qué devolver
+        when(productoMapper.entityToResponseDto(productoEntidad)).thenReturn(responseDTO);
 
         // --- 2. ACT (Actuar) ---
-        // Llamamos al método REAL que queremos probar
-        List<Producto> resultado = productoService.getAllProductos();
+        List<ProductoResponseDTO> resultado = productoService.getAllProductos();
 
         // --- 3. ASSERT (Afirmar) ---
-        // Comprobamos que el resultado es el que esperábamos
+        assertNotNull(resultado);
+        assertEquals(1, resultado.size());
+        assertEquals("Test DTO", resultado.get(0).getNombre());
 
-        assert(resultado.size() == 1);
-        assert(resultado.get(0).getNombre().equals("Test 1"));
+        // Verificamos que los mocks fueron llamados
+        verify(productoRepository).findAll();
+        verify(productoMapper).entityToResponseDto(productoEntidad);
     }
 
     @Test
     void testGetProductoById_cuandoExiste() {
         // --- 1. ARRANGE ---
-        Long idBuscado = 1L;
-        Producto p1 = Producto.builder()
-                .id(idBuscado)
-                .nombre("Test 1")
-                .precio(100.0)
-                .build();
-
-        // "CUANDO alguien llame a findById(1L),
-        // ENTONCES devuelve un Optional que contiene p1"
-        org.mockito.Mockito.when(productoRepository.findById(idBuscado))
-                .thenReturn(Optional.of(p1));
+        when(productoRepository.findById(1L)).thenReturn(Optional.of(productoEntidad));
+        when(productoMapper.entityToResponseDto(productoEntidad)).thenReturn(responseDTO);
 
         // --- 2. ACT ---
-        Optional<Producto> resultado = productoService.getProductoById(idBuscado);
+        Optional<ProductoResponseDTO> resultado = productoService.getProductoById(1L);
 
         // --- 3. ASSERT ---
-        assert(resultado.isPresent());
-        assert(resultado.get().getId().equals(idBuscado));
+        assertTrue(resultado.isPresent());
+        assertEquals(1L, resultado.get().getId());
+        verify(productoRepository).findById(1L);
+        verify(productoMapper).entityToResponseDto(productoEntidad);
     }
 
     @Test
     void testGetProductoById_cuandoNoExiste() {
         // --- 1. ARRANGE ---
-        Long idBuscado = 99L;
-
-        // "CUANDO alguien llame a findById(99L),
-        // ENTONCES devuelve un Optional vacío"
-        org.mockito.Mockito.when(productoRepository.findById(idBuscado))
-                .thenReturn(Optional.empty());
+        when(productoRepository.findById(99L)).thenReturn(Optional.empty());
 
         // --- 2. ACT ---
-        Optional<Producto> resultado = productoService.getProductoById(idBuscado);
+        Optional<ProductoResponseDTO> resultado = productoService.getProductoById(99L);
 
         // --- 3. ASSERT ---
-        assert(resultado.isEmpty());
+        assertTrue(resultado.isEmpty());
+        // ¡Verificamos que el mapper NUNCA fue llamado!
+        verify(productoMapper, never()).entityToResponseDto(any(Producto.class));
     }
 
     @Test
-    void testCreateProducto_deberiaGuardarCorrectamente() {
+    void testCreateProducto_deberiaGuardarYDevolverDTO() {
         // --- 1. ARRANGE ---
-        Producto productoSinId = Producto.builder()
-                .nombre("Nuevo")
-                .precio(200.0)
-                .build(); // Fíjate qué limpio, no le ponemos ID
+        // 1. Simulamos la traducción DTO -> Entidad (sin ID)
+        Producto entidadSinId = Producto.builder().nombre("Test DTO").precio(100.0).build();
+        when(productoMapper.requestDtoToEntity(requestDTO)).thenReturn(entidadSinId);
 
-        Producto productoConId = Producto.builder()
-                .id(1L)
-                .nombre("Nuevo")
-                .precio(200.0)
-                .build();
+        // 2. Simulamos el guardado en BBDD (que devuelve la entidad CON ID)
+        when(productoRepository.save(entidadSinId)).thenReturn(productoEntidad); // productoEntidad SÍ tiene ID 1L
 
-        // "CUANDO alguien llame a save(CUALQUIER objeto Producto),
-        // ENTONCES devuelve el productoConId"
-        org.mockito.Mockito.when(productoRepository.save(org.mockito.ArgumentMatchers.any(Producto.class)))
-                .thenReturn(productoConId);
+        // 3. Simulamos la traducción Entidad -> DTO (con ID)
+        when(productoMapper.entityToResponseDto(productoEntidad)).thenReturn(responseDTO);
 
         // --- 2. ACT ---
-        Producto resultado = productoService.createProducto(productoSinId);
+        ProductoResponseDTO resultado = productoService.createProducto(requestDTO);
 
         // --- 3. ASSERT ---
-        assert(resultado.getId() != null);
-        assert(resultado.getId().equals(1L));
-        assert(resultado.getNombre().equals("Nuevo"));
+        assertNotNull(resultado);
+        assertEquals(1L, resultado.getId());
+        assertEquals("Test DTO", resultado.getNombre());
+
+        // Verificamos que todo el flujo de llamadas ocurrió
+        verify(productoMapper).requestDtoToEntity(requestDTO);
+        verify(productoRepository).save(entidadSinId);
+        verify(productoMapper).entityToResponseDto(productoEntidad);
     }
 }
