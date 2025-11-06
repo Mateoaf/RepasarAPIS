@@ -2,6 +2,7 @@ package com.example.refrescar_apis.controllers;
 
 import com.example.refrescar_apis.models.Producto;
 import com.example.refrescar_apis.service.ProductoService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,8 +40,32 @@ import java.util.Optional;
         }
 
     @PostMapping
-    public Producto createProducto(@RequestBody Producto nuevoProducto) {
-        // "Jefe de sala": "Cocinero, prepara este nuevo plato"
+    public Producto createProducto(@Valid @RequestBody Producto nuevoProducto) {
+
         return this.productoService.createProducto(nuevoProducto);
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Producto> updateProducto(
+            @PathVariable Long id,
+            @Valid @RequestBody Producto productoConDetalles) {
+
+        Optional<Producto> productoActualizadoOpt =
+                this.productoService.updateProducto(id, productoConDetalles);
+
+
+        return productoActualizadoOpt
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProducto(@PathVariable Long id) {
+
+        boolean borrado = this.productoService.deleteProducto(id);
+
+        if (borrado) {
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
