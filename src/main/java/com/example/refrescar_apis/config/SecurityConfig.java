@@ -17,7 +17,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import static org.springframework.boot.autoconfigure.security.servlet.PathRequest.toH2Console;
+
 
 @Configuration // Le dice a Spring que esta es una clase de configuración
 @EnableWebSecurity // Activa la seguridad web de Spring
@@ -64,26 +64,18 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(authorize -> authorize
-
-                        .requestMatchers(toH2Console()).permitAll()
                         .requestMatchers("/login").permitAll()
-
                         .requestMatchers(HttpMethod.GET, "/api/productos/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/productos").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasRole("ADMIN")
-
-                        .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll() // Cualquiera puede VER categorías
-                        .requestMatchers(HttpMethod.POST, "/api/categorias").hasRole("ADMIN") // Solo ADMIN puede CREAR categorías
+                        .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/categorias").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/categorias/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
-                // Y lo usamos aquí
-                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
-
-                .headers(headers -> headers
-                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
-                );
 
         return http.build();
     }
